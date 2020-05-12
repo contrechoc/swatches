@@ -1,0 +1,52 @@
+//in a woven piece of fabric, with conductive wires
+//https://www.flickr.com/photos/contrechoc/albums/72157713148275338
+
+int led1 = 0;
+int led2 = 1;
+
+int ADC1 = 1;//sensor pin 2
+
+int counter = 0;
+
+// the setup function runs once when you press reset or power the board
+void setup() {
+
+  pinMode(led1, OUTPUT);
+  pinMode(led2, OUTPUT);
+
+  blinkOne(led1, 500);
+  delay(100);
+  blinkOne(led2, 500);
+  delay(100);
+
+}
+
+// the loop function runs over and over again forever
+void loop() {
+
+  int sensorValue = analogRead ( ADC1 );
+  counter++;
+
+  digitalWrite(led1, LOW);
+  digitalWrite(led2, HIGH);
+  delay(sensorValue);
+  digitalWrite(led1, HIGH);
+  digitalWrite(led2, LOW);
+  delay(sensorValue);
+
+  if ( counter > 9){
+    counter = 0;
+    for (int i = 0; i < 10; i++)
+    blinkOne(led1, 100);
+     for (int i = 0; i < 10; i++)
+    blinkOne(led2, 100);
+  }
+}
+
+void blinkOne ( int whichLed, int howLong )
+{
+  digitalWrite(whichLed, HIGH);
+  delay( howLong);
+  digitalWrite(whichLed, LOW);
+  delay(howLong);
+}
