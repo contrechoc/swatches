@@ -1,0 +1,36 @@
+//swatch script softPot Membrane + ATtiny85 - 8Mhz, + speaker
+
+//https://www.floris.cc/shop/en/flex-force/740-softpot-membrane-potentiometer-50mm.html
+//SoftPot Membrane Potentiometer - 50mm
+//https://www.sparkfun.com/datasheets/Sensors/Flex/SoftPot-Datasheet.pdf
+
+
+#define SOUND PB0
+
+void setup() {
+  // put your setup code here, to run once:
+  pinMode(SOUND, OUTPUT);
+}
+
+int ADC1 = 1;
+
+void loop() {
+  int adc = analogRead ( ADC1 );
+
+  adc = adc / 8 ;
+  sound (adc, 1);
+
+}
+ 
+void sound(int k, int duration) {
+
+  for (int i = 0; i < duration ; i++) {
+    PORTB &= ~(1 << SOUND);
+    for (int i2 = 0 ; i2 < k ; i2++) //do this 100 times, so lowering this number gives a higher pitch!
+      __asm__("nop\n\t");
+    PORTB |= (1 << SOUND);
+    for (int i2 = 0 ; i2 < k ; i2++) //do this 100 times, so lowering this number gives a higher pitch!
+      __asm__("nop\n\t");
+
+  }
+}
