@@ -1,0 +1,355 @@
+//swatch, with TFT and BME680 and ADXL345 - combination of scripts
+
+/***************************************************************************
+  This is a library for the BME680 gas, humidity, temperature & pressure sensor
+
+  Designed specifically to work with the Adafruit BME680 Breakout
+  ----> http://www.adafruit.com/products/3660
+
+  These sensors use I2C or SPI to communicate, 2 or 4 pins are required
+  to interface.
+
+  Adafruit invests time and resources providing this open source code,
+  please support Adafruit and open-source hardware by purchasing products
+  from Adafruit!
+
+  Written by Limor Fried & Kevin Townsend for Adafruit Industries.
+  BSD license, all text above must be included in any redistribution
+ ***************************************************************************/
+
+#include <Wire.h>
+#include <SPI.h>
+#include <Adafruit_Sensor.h>
+#include "Adafruit_BME680.h"
+
+#define BME_SCK 13
+#define BME_MISO 12
+#define BME_MOSI 11
+#define BME_CS 10
+
+#define SEALEVELPRESSURE_HPA (1013.25)
+
+Adafruit_BME680 bme; // I2C
+
+/*  *********************************************
+    SparkFun_ADXL345_Example
+    Triple Axis Accelerometer Breakout - ADXL345
+    Hook Up Guide Example
+
+    Utilizing Sparkfun's ADXL345 Library
+    Bildr ADXL345 source file modified to support
+    both I2C and SPI Communication
+
+    E.Robert @ SparkFun Electronics
+    Created: Jul 13, 2016
+    Updated: Sep 06, 2016
+
+    Development Environment Specifics:
+    Arduino 1.6.11
+
+    Hardware Specifications:
+    SparkFun ADXL345
+    Arduino Uno
+ *  *********************************************/
+
+#include <SparkFun_ADXL345.h>         // SparkFun ADXL345 Library
+
+/*********** COMMUNICATION SELECTION ***********/
+
+ADXL345 adxl = ADXL345();             // USE FOR I2C COMMUNICATION
+
+//TFT
+
+#include <TFT.h>  // Arduino LCD library
+#include <SPI.h>
+
+// pin definition for the Uno
+#define cs   10
+#define dc   9
+#define rst  8
+
+// create an instance of the library
+TFT TFTscreen = TFT(cs, dc, rst);
+
+// char array to print to the screen
+char sensorPrintout[6];
+
+long timer;
+
+int pixelNumber = 30;
+int oldPix = 30;
+
+int x, y, z;
+
+int oldX = 0;
+int oldY = 0;
+int oldZ = 0;
+
+void setup() {
+  Serial.begin(9600);
+
+  setupADXL345();
+  setupBME();
+
+  pinMode(6, OUTPUT);
+  digitalWrite(6, HIGH);
+
+  TFTscreen.begin();
+  startTFT();
+
+  timer = millis() + 1000;
+}
+
+void loop() {
+  /*
+  if ( timer < millis())
+  {
+    bmeLOOP();
+    timer = millis() + 1000;
+  }
+  */
+  
+  adxlLOOP();
+
+  pixelNumber++;
+  int setMid = 50;
+  TFTscreen.stroke(255, 0, 0);
+  TFTscreen.line(x + setMid, pixelNumber, oldX + setMid, oldPix);
+  TFTscreen.stroke(255, 255, 0);
+  TFTscreen.line(y + setMid, pixelNumber, oldY + setMid, oldPix);
+  TFTscreen.stroke(0, 255, 255);
+  TFTscreen.line(z + setMid, pixelNumber, oldZ + setMid, oldPix);
+
+  oldX = x;
+  oldY = y;
+  oldZ = z;
+  oldPix = pixelNumber;
+
+  if ( pixelNumber > 170)
+  {
+    startTFT();
+    pixelNumber = 30;
+  }
+
+  delay(100);
+}
+
+void adxlLOOP() {
+  // Accelerometer Readings
+
+  adxl.readAccel(&x, &y, &z);         // Read the accelerometer values and store them in variables declared above x,y,z
+
+  // Output Results to Serial
+  /* UNCOMMENT TO VIEW X Y Z ACCELEROMETER VALUES */
+  Serial.print(x);
+  Serial.print(", ");
+  Serial.print(y);
+  Serial.print(", ");
+  Serial.println(z);
+
+  ADXL_ISR();
+}
+
+void bmeLOOP() {
+  // Tell BME680 to begin measurement.
+  unsigned long endTime = bme.beginReading();
+  if (endTime == 0) {
+    Serial.println(F("Failed to begin reading :("));
+    return;
+  }
+  Serial.print(F("Reading started at "));
+  Serial.print(millis());
+  Serial.print(F(" and will finish at "));
+  Serial.println(endTime);
+
+  Serial.println(F("You can do other work during BME680 measurement."));
+  delay(50); // This represents parallel work.
+  // There's no need to delay() until millis() >= endTime: bme.endReading()
+  // takes care of that. It's okay for parallel work to take longer than
+  // BME680's measurement time.
+
+  // Obtain measurement results from BME680. Note that this operation isn't
+  // instantaneous even if milli() >= endTime due to I2C/SPI latency.
+  if (!bme.endReading()) {
+    Serial.println(F("Failed to complete reading :("));
+    return;
+  }
+  Serial.print(F("Reading completed at "));
+  Serial.println(millis());
+
+  Serial.print(F("Temperature = "));
+  Serial.print(bme.temperature);
+  Serial.println(F(" *C"));
+
+ TFTscreen.text("Temp:", 0, 10);
+  String sensorVal = String(bme.temperature);
+  sensorVal.toCharArray(sensorPrintout, 5);
+  TFTscreen.text(sensorPrintout, 30, 10);
+
+  Serial.print(F("Pressure = "));
+  Serial.print(bme.pressure / 100.0);
+  Serial.println(F(" hPa"));
+
+ TFTscreen.text("Press:", 65, 10);
+  sensorVal = String(bme.pressure / 100.0);
+  sensorVal.toCharArray(sensorPrintout, 5);
+  TFTscreen.text(sensorPrintout, 100, 10);
+
+  Serial.print(F("Humidity = "));
+  Serial.print(bme.humidity);
+  Serial.println(F(" %"));
+
+ TFTscreen.text("Hum:", 0, 20);
+  sensorVal = String(bme.humidity);
+  sensorVal.toCharArray(sensorPrintout, 3);
+  TFTscreen.text(sensorPrintout, 30, 20);
+
+  Serial.print(F("Gas = "));
+  Serial.print(bme.gas_resistance / 1000.0);
+  Serial.println(F(" KOhms"));
+
+ TFTscreen.text("Gas:", 65, 20);
+  sensorVal = String(bme.gas_resistance / 1000.0);
+  sensorVal.toCharArray(sensorPrintout, 5);
+  TFTscreen.text(sensorPrintout, 100, 20);
+
+  Serial.print(F("Approx. Altitude = "));
+  Serial.print(bme.readAltitude(SEALEVELPRESSURE_HPA));
+  Serial.println(F(" m"));
+
+  Serial.println();
+  //delay(2000);
+}
+
+void setupADXL345()
+{
+  Serial.println("SparkFun ADXL345 Accelerometer Hook Up Guide Example");
+  Serial.println();
+
+  adxl.powerOn();                     // Power on the ADXL345
+
+  adxl.setRangeSetting(16);           // Give the range settings
+  // Accepted values are 2g, 4g, 8g or 16g
+  // Higher Values = Wider Measurement Range
+  // Lower Values = Greater Sensitivity
+
+  adxl.setSpiBit(0);                  // Configure the device to be in 4 wire SPI mode when set to '0' or 3 wire SPI mode when set to 1
+  // Default: Set to 1
+  // SPI pins on the ATMega328: 11, 12 and 13 as reference in SPI Library
+
+  adxl.setActivityXYZ(1, 0, 0);       // Set to activate movement detection in the axes "adxl.setActivityXYZ(X, Y, Z);" (1 == ON, 0 == OFF)
+  adxl.setActivityThreshold(75);      // 62.5mg per increment   // Set activity   // Inactivity thresholds (0-255)
+
+  adxl.setInactivityXYZ(1, 0, 0);     // Set to detect inactivity in all the axes "adxl.setInactivityXYZ(X, Y, Z);" (1 == ON, 0 == OFF)
+  adxl.setInactivityThreshold(75);    // 62.5mg per increment   // Set inactivity // Inactivity thresholds (0-255)
+  adxl.setTimeInactivity(10);         // How many seconds of no activity is inactive?
+
+  adxl.setTapDetectionOnXYZ(0, 0, 1); // Detect taps in the directions turned ON "adxl.setTapDetectionOnX(X, Y, Z);" (1 == ON, 0 == OFF)
+
+  // Set values for what is considered a TAP and what is a DOUBLE TAP (0-255)
+  adxl.setTapThreshold(50);           // 62.5 mg per increment
+  adxl.setTapDuration(15);            // 625 μs per increment
+  adxl.setDoubleTapLatency(80);       // 1.25 ms per increment
+  adxl.setDoubleTapWindow(200);       // 1.25 ms per increment
+
+  // Set values for what is considered FREE FALL (0-255)
+  adxl.setFreeFallThreshold(7);       // (5 - 9) recommended - 62.5mg per increment
+  adxl.setFreeFallDuration(30);       // (20 - 70) recommended - 5ms per increment
+
+  // Setting all interupts to take place on INT1 pin
+  //adxl.setImportantInterruptMapping(1, 1, 1, 1, 1);     // Sets "adxl.setEveryInterruptMapping(single tap, double tap, free fall, activity, inactivity);"
+  // Accepts only 1 or 2 values for pins INT1 and INT2. This chooses the pin on the ADXL345 to use for Interrupts.
+  // This library may have a problem using INT2 pin. Default to INT1 pin.
+
+  // Turn on Interrupts for each mode (1 == ON, 0 == OFF)
+  adxl.InactivityINT(1);
+  adxl.ActivityINT(1);
+  adxl.FreeFallINT(1);
+  adxl.doubleTapINT(1);
+  adxl.singleTapINT(1);
+
+
+
+}
+
+void setupBME() {
+  while (!Serial);
+  Serial.println(F("BME680 async test"));
+
+  if (!bme.begin()) {
+    Serial.println(F("Could not find a valid BME680 sensor, check wiring!"));
+    while (1);
+  }
+
+  // Set up oversampling and filter initialization
+  bme.setTemperatureOversampling(BME680_OS_8X);
+  bme.setHumidityOversampling(BME680_OS_2X);
+  bme.setPressureOversampling(BME680_OS_4X);
+  bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
+  bme.setGasHeater(320, 150); // 320*C for 150 ms
+}
+
+/********************* ISR *********************/
+/* Look for Interrupts and Triggered Action    */
+void ADXL_ISR() {
+
+  // getInterruptSource clears all triggered actions after returning value
+  // Do not call again until you need to recheck for triggered actions
+  byte interrupts = adxl.getInterruptSource();
+
+  // Free Fall Detection
+  if (adxl.triggered(interrupts, ADXL345_FREE_FALL)) {
+    Serial.println("*** FREE FALL ***");
+    //add code here to do when free fall is sensed
+  }
+
+  // Inactivity
+  if (adxl.triggered(interrupts, ADXL345_INACTIVITY)) {
+    Serial.println("*** INACTIVITY ***");
+    //add code here to do when inactivity is sensed
+  }
+
+  // Activity
+  if (adxl.triggered(interrupts, ADXL345_ACTIVITY)) {
+    Serial.println("*** ACTIVITY ***");
+    //add code here to do when activity is sensed
+  }
+
+  // Double Tap Detection
+  if (adxl.triggered(interrupts, ADXL345_DOUBLE_TAP)) {
+    Serial.println("*** DOUBLE TAP ***");
+    //add code here to do when a 2X tap is sensed
+  }
+
+  // Tap Detection
+  if (adxl.triggered(interrupts, ADXL345_SINGLE_TAP)) {
+    Serial.println("*** TAP ***");
+    //add code here to do when a tap is sensed
+  }
+}
+
+void startTFT() {
+  // Put this line at the beginning of every sketch that uses the GLCD:
+
+
+  // clear the screen with a black background
+  TFTscreen.background(0, 0, 0);
+
+  // write the static text to the screen
+  // set the font color to white
+  TFTscreen.stroke(255, 255, 255);
+  // set the font size
+  TFTscreen.setTextSize(1);
+  // write the text to the top left corner of the screen
+  TFTscreen.text("BME680 and ADXL345", 0, 0);
+  //TFTscreen.text("Meditation Blue", 0, 10);
+  TFTscreen.text("LOW", 0, 30);
+  TFTscreen.text("HIGH", 100, 30);
+  // ste the font size very large for the loop
+  //TFTscreen.setTextSize(5);
+
+  pixelNumber = 30;
+  oldPix = 30;
+
+  bmeLOOP();
+}
