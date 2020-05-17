@@ -1,0 +1,62 @@
+//swatch collection: swatch with knitted conductive wool - voltage divider
+
+
+int led1 = 0;
+int led2 = 1;
+
+int ADC1 = 1;
+
+void setup() {
+  pinMode(led1, OUTPUT);
+  pinMode(led2, OUTPUT);
+
+  blinkOne(led1, 500);
+  delay(100);
+  blinkOne(led2, 500);
+  delay(100);
+}
+
+void loop() {
+
+  digitalWrite(led1, LOW);
+  digitalWrite(led2, LOW);
+
+  if (  (analogRead ( ADC1 )) > 300 )
+  {
+    digitalWrite(led2, HIGH);
+    digitalWrite(led1, LOW);
+  }
+  else
+  {
+    digitalWrite(led1, HIGH);
+    digitalWrite(led2, LOW);
+  }
+
+}
+
+void blinkOne ( int whichLed, int howLong )
+{
+  digitalWrite(whichLed, HIGH);
+  delay( howLong);
+  digitalWrite(whichLed, LOW);
+  delay(howLong);
+}
+
+void alternate(int whichLed1, int whichLed2, int howLong) {
+  digitalWrite(whichLed1, HIGH);
+  digitalWrite(whichLed2, LOW);
+  delay( howLong);
+  digitalWrite(whichLed1, LOW);
+  digitalWrite(whichLed2, HIGH);
+  delay(howLong);
+
+}
+void blinkBoth (   int howLong )
+{
+  digitalWrite(led1, HIGH);
+  digitalWrite(led2, HIGH);
+  delay( howLong);
+  digitalWrite(led1, LOW);
+  digitalWrite(led2, LOW);
+  delay(howLong);
+}
